@@ -5,11 +5,9 @@ install_pkg() {
     PKG="$1"
     if opkg list-installed | grep -q "^${PKG} "; then
         echo "[SKIP] ${PKG} sudah terpasang."
-        return 1  # kod 1 = skip
     else
         echo "[INSTALL] ${PKG}..."
         opkg install "$PKG"
-        return 0  # kod 0 = berjaya pasang
     fi
 }
 
@@ -30,16 +28,42 @@ install_nas() {
         install_pkg python3-pip
         install_pkg aria2
         install_pkg ariang
+        install_pkg luci-app-aria2
         install_pkg minidlna
-        # install_pkg samba4
-        # install_pkg autosamba
+        install_pkg luci-app-minidlna
+        install_pkg qbittorrent
+        install_pkg luci-app-qbittorrent
+        install_pkg autosamba
+        install_pkg luci-app-samba4
         echo "[DONE] Pakej NAS selesai dipasang."
+
+        echo "[INFO] Menulis semula konfigurasi ke /etc/config/aria2..."
+        cat << 'EOF' > /etc/config/aria2
+config aria2 'main'
+	option enabled '0'
+	option user 'aria2'
+	option dir '/mnt/sda1/aria2'
+	option config_dir '/var/etc/aria2'
+	option bt_enable_lpd 'true'
+	option enable_dht 'true'
+	option follow_torrent 'true'
+	option file_allocation 'none'
+	option save_session_interval '30'
+	option enable_logging '0'
+	option rpc_auth_method 'none'
+	option rpc_secure 'false'
+	option enable_proxy '0'
+	option check_certificate 'false'
+	option enable_dht6 'false'
+	option enable_peer_exchange 'true'
+EOF
+        echo "[OK] Konfigurasi ditulis semula ke /etc/config/aria2."
     fi
 }
 
 # ====== Fungsi install Network ======
 install_https_dns_proxy() {
-    install_pkg https-dns-proxy
+    install_pkg luci-app-https-dns-proxy
 }
 
 install_adblock_fast() {
@@ -47,7 +71,7 @@ install_adblock_fast() {
     install_pkg gawk
     install_pkg grep
     install_pkg sed
-    install_pkg adblock-fast
+    install_pkg luci-app-adblock-fast
 }
 
 # ====== Fungsi install Clash Converter ======
@@ -75,13 +99,11 @@ install_modnssvpn() {
 }
 
 # ====== Mula skrip ======
-# Update opkg sekali sahaja
-opkg update
+opkg update  # sekali sahaja
 
 # Auto install NAS
 install_nas
 
-# Menu network selepas NAS
 echo
 echo "==============================="
 echo " Pilih Pakej Network & Tambahan"
@@ -103,12 +125,17 @@ else
     [ "$ans" = "y" ] || [ "$ans" = "Y" ] && install_adblock_fast || echo "[SKIP] adblock-fast tidak dipasang."
 fi
 
-# ====== Clash Converter ======
-if [ -f "/usr/lib/lua/luci/controller/clash_converter.lua" ]; then
-    echo "[SKIP] Clash Converter sudah wujud."
+# ====== Clash Converter (bergantung pada OpenClash) ======
+if opkg list-installed | grep -q "^luci-app-openclash "; then
+    echo "[INFO] OpenClash ditemui."
+    if [ -f "/usr/lib/lua/luci/controller/clash_converter.lua" ]; then
+        echo "[SKIP] Clash Converter sudah wujud."
+    else
+        read -p "OpenClash ada. Pasang Clash Converter juga? (y/n): " ans
+        [ "$ans" = "y" ] || [ "$ans" = "Y" ] && install_clash_converter || echo "[SKIP] Clash Converter tidak dipasang."
+    fi
 else
-    read -p "Pasang Clash Converter? (y/n): " ans
-    [ "$ans" = "y" ] || [ "$ans" = "Y" ] && install_clash_converter || echo "[SKIP] Clash Converter tidak dipasang."
+    echo "[SKIP] OpenClash tidak dijumpai, Clash Converter tidak akan dipasang."
 fi
 
 # ====== ModNssVpn ======
