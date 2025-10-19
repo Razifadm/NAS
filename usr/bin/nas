@@ -13,7 +13,7 @@ install_pkg() {
 
 # ====== Fungsi install NAS ======
 install_nas() {
-    MIN_SPACE=200
+    MIN_SPACE=150
     echo "[INFO] Semak ruang storage sebelum pemasangan pakej NAS..."
     FREE_SPACE=$(df /overlay | awk 'NR==2 {print int($4/1024)}')  # dalam MB
     echo "[INFO] Ruang kosong: ${FREE_SPACE}MB"
